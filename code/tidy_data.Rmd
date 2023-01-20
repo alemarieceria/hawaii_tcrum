@@ -1,0 +1,172 @@
+---
+title: "Building the Hawaii Coastal Sites and <br> Characteristics Dataset"
+author: "Alemarie Ceria"
+output: 
+  html_document:
+    toc: true
+---
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  color: Black;
+  font-weight:bold;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  color: Black;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 18px;
+  color: Black;
+  text-align: center;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+## Libraries
+
+```{r Libraries, message=FALSE, warning=FALSE}
+# For finding path to directory
+library(here)
+
+# For data tidying
+library(tidyverse)
+
+# For visualizations
+library(rmarkdown)
+library(leaflet)
+```
+
+## Data Sources
+
+1. Geographic Names Dataset
+    - The dataset comes from the Hawaii Statewide GIS Program website and can be downloaded [here](https://geoportal.hawaii.gov/datasets/HiStateGIS::gnis-geographic-names/about) 
+    - Metadata can be found [here](https://files.hawaii.gov/dbedt/op/gis/data/geonames.pdf)
+2. Webscraped data from [To-Hawaii.com](https://www.to-hawaii.com/maui/beaches/) blog
+    - See `code/data_collection_methods.Rmd` file for step-by-step process
+3. Google Maps Places API - [Nearby Search](https://developers.google.com/maps/documentation/places/web-service/search-nearby)
+    - See `code/data_collection_methods.Rmd` file for step-by-step process
+
+## Data tidying
+
+### Geographic Names Dataset
+
+#### Define a function to perform selecting, renaming and filtering
+
+```{r select_rename_filter() Function, message=FALSE, warning=FALSE}
+# 
+select_rename_filter <- function(data) {
+  data %>%
+    select(feature_name, feature_class, county_name, map_name, X, Y) %>%
+    rename(lat = Y, lon = X, site_name = feature_name, 
+           class = feature_class, county = county_name) %>%
+    # Only keep beach parks
+    filter(class %in% c("Bay", "Beach", "Harbor") |
+           str_detect(site_name, regex("\\bbeach park\\b", ignore_case = TRUE)))
+}
+
+# Validation
+# Parks total: 513 (With other classes: 1109),
+# select_rename_filter <- function(data) {
+#   data %>%
+#     select(feature_name, feature_class, county_name, map_name, X, Y) %>%
+#     rename(lat = Y, lon = X, site_name = feature_name, class = feature_class) %>%
+#     filter(class %in% c("Bay", "Beach", "Harbor", "Park"))
+# }
+# Beach parks total: 105 (With other classes: 701)
+# geographic_names_df %>%
+#   filter(class == 'Park' & str_detect(site_name, regex("\\bbeach park\\b", ignore_case = TRUE)))
+```
+
+#### Read in dataset
+
+```{r Geographic Names Raw Dataset, message=FALSE, warning=FALSE}
+geographic_names <- read.csv(here('data/raw/geographic_names_hi_gis.csv'))
+```
+
+#### Create the following source objects
+
+```{r Source Objects, message=FALSE, warning=FALSE}
+# Maui island bounding box coordinates
+min_lon <- -156.712611
+max_lon <- -155.957301
+min_lat <- 20.568013
+max_lat <- 21.042995
+
+# Kahoolawe site that will get removed by bounding box -- Add back in later
+kaulana_beach <- geographic_names %>% 
+  filter(feature_name == 'Kaulana Beach') %>% 
+  select_rename_filter(.)
+```
+
+#### Tidy dataset
+
+```{r Tidy Geographic Names Dataset, message=FALSE, warning=FALSE}
+geographic_names_df <- geographic_names %>% 
+  select_rename_filter(.) %>%
+  # Remove Maui Island sites -- Derek already did it
+  filter(lon < min_lon | lon > max_lon | lat < min_lat | lat > max_lat) %>% 
+  # Add Kaulana Beach back in
+  bind_rows(., kaulana_beach) %>% 
+  # Remove sites not a part of the Main Hawaiian Islands (Adams Bay and West Cove)
+  filter(site_name != 'Adams Bay' & site_name != 'West Cove' & site_name != 'Shark Bay') %>%
+  # Standardize site_name
+  mutate(site_name = stringi::stri_trans_general(site_name, "Latin-ASCII")) %>%
+  mutate(site_name = stringr::str_trim(site_name)) %>% 
+  # Remove "'" and "(historical)"
+  mutate(site_name = stringr::str_remove(site_name, "'")) %>%
+  mutate(site_name = stringr::str_remove_all(site_name, "\\(.*\\)")) %>% 
+  mutate_if(is.character, as.factor)
+  # mutate(site_name = stringi::stri_trans_tolower(site_name))
+```
+
+#### Table
+
+```{r Tidied Geographic Names Dataset, message=FALSE, warning=FALSE}
+paged_table(geographic_names_df)
+```
+
+#### Interactive map
+
+Click site to see site name 
+
+```{r Tidied Geographic Names Map, fig.height=5, fig.width=9.5, message=FALSE, warning=FALSE}
+# Creating a qualitative color scale:
+class_colors <- colorFactor(c('#d7191c', '#fdae61', '#abd9e9', '#2c7bb6'),
+                             domain = c('Bay', 'Beach', 'Harbor', 'Park'))
+
+leaflet(geographic_names_df) %>% 
+  addTiles() %>%
+  setView(-157.56868557054815, 20.455, zoom = 7) %>%
+  addCircleMarkers(~lon, ~lat, popup = geographic_names_df$site_name, 
+                   weight = 3, color = ~class_colors(class), 
+                   radius = 4, stroke = F, fillOpacity = 0.75) %>% 
+addLegend(colors = c('#d7191c', '#fdae61', '#abd9e9', '#2c7bb6'), labels=c('Bay', 'Beach', 'Harbor', 'Park'), "bottomleft", title="Class", opacity = 0.9)
+```
+
+***
+
+## Data Dictionary
+
+```{r Data Dictionary, echo=FALSE, message=FALSE, warning=FALSE}
+data_dictionary <- read.csv(here('documentation/coastal_sites_characteristics_data_dictionary.csv'))
+
+paged_table(data_dictionary)
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# For future reference: You can also use the package fuzzyjoin to join the datasets based on approximate matching of site name
+
+library(fuzzyjoin)
+fuzzy_left_join(geographic_names_df, other_data_source, by = c("site_name" = "site_name"), match_fun = list(`==`, stringdist_inner_join))
+```
+
