@@ -30,7 +30,7 @@ h4.date { /* Header 4 - and the author and data headers use this too  */
 
 # Web scrape [To-Hawaii.com](https://www.to-hawaii.com/maui/beaches/) blog
 
-## Libraries:
+## Libraries
 
 ```{r message=FALSE, warning=FALSE}
 # For tidying data
@@ -47,7 +47,24 @@ library(RSelenium)
 library(jsonlite)
 ```
 
-## Web scraping instructions:
+## Webscraping
+
+```{r}
+rs_driver_object <- rsDriver(browser = "chrome",
+                             port = 9515L,
+                             chromever = "109.0.5414.74")
+
+obj <- rdriver$client
+
+obj$navigate("https://www.to-hawaii.com")
+
+obj$close
+```
+
+
+## Tutorial
+
+### Web scraping instructions
 
 "User-agent: *
 Disallow: /example_path/"
@@ -85,7 +102,7 @@ look_into_hawaii$permissions
 # ) 
 ```
 
-## Craw delays:
+### Craw delays
 
 ```{r Crawl Delays, message=FALSE, warning=FALSE}
 # Check website's recommended crawl delay, but standard is 5 - 10 seconds between calls
@@ -110,7 +127,7 @@ look_into_hawaii$permissions
 # nytnyt() example output: "Hello website 1 2023-01-19 20:36:18 - Sleeping for  9.77 seconds"
 ```
 
-## Get IP function:
+### Get IP function
 
 ```{r Get IP, message=FALSE, warning=FALSE}
 get_ip <- function(){
@@ -122,7 +139,7 @@ get_ip <- function(){
 get_ip()
 ```
 
-## Document Object Model (DOM)
+### Document Object Model (DOM)
 
 ![](G:/.shortcut-targets-by-id/1xsGdAg4Wshwmh3vEnWe-mxuOrR85IfQ4/Coastal ecosystem accounting/1c. Ecosystem use/hawaii_tcrum/visualizations/dom_example.png)
 
@@ -138,7 +155,7 @@ ahihi_table <- ahihi_cove %>% html_nodes(c('[id*=contenttab]'))
 
 Tip: Keep webpages as separate objects. Do not pipe html_node(s) in case of mistakes.
 
-## URL breakdown:
+### URL breakdown:
 
 - ?: Breaks up the API and parameters follow
 - &: Breaks up parameters
@@ -152,6 +169,7 @@ Tip: Keep webpages as separate objects. Do not pipe html_node(s) in case of mist
 2. [Test your IP](https://api.ipify.org/?format=json)
 3. [DOM tree document](https://javascript.info/dom-nodes)
 4. [Css Selector Reference](https://www.w3schools.com/cssref/css_selectors.php)
+5. [How to Web Scrape RateMyProfessors Using RSelenium](https://www.youtube.com/watch?v=mWUOdV2nMOk)
 
 ***
 
