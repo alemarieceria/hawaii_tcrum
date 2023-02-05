@@ -1,101 +1,87 @@
-# Goal: I want to web scrape data for all beaches for each island, specifically the description (for later text analysis), facilities and activities. 
-
-# Following tutorials: 
-# https://www.youtube.com/watch?v=j7VZsCCnptM&t=7221s
-# https://www.youtube.com/watch?v=OxbvFiYxEzI
-
-# For modifying the env. var. `PATH` and adding new directory path
 import os
-
-# For nytnyt function
-import random
+import csv
 import time
-
-# For web scraping
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from bs4 import BeautifulSoup
-
-# For dataset
 import pandas as pd
-import csv
 
-# To access chromedriver.exe and run an interactive Chrome browser
-os.environ['PATH'] += r"C:/webdrivers"
 
-# Initialize web driver
-driver = webdriver.Chrome()
+def extract_coastal_site_data(driver, wait):
+    """
+    Extracts name, description, facilities, and activities for a single coastal site page
+    """
+    # Find and extract name of coastal site
+    name = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#wrapper > div.midpanel > div > h1 > span"))).text
+    # Find all the p elements within div.new-custom and join their text into a single string.
+    description_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#wrapper > div.midpanel > div > div.new-custom > div")))
+    description = "".join([p.text for p in description_element.find_elements_by_css_selector("p")])
+    # Click on facilities button and extract text from list
+    driver.find_element_by_css_selector("#menu3 > a").click()
+    facilities = [item.text for item in wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#contenttab3 > ul > li")))]
+    # Click on activities button and extract text from list
+    driver.find_element_by_css_selector("#menu4 > a").click()
+    activities = [item.text for item in wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#contenttab4 > ul > li")))]
+    return {"Name": name, "Description": description, "Facilities": facilities, "Activities": activities}
 
-# Create an empty dataframe to store the information
-df = pd.DataFrame(columns=['name', 'description', 'facilities', 'activities'])
+def scrape_island_coastal_site(driver, wait, island):
+    """Scrapes data for each coastal site listed for a given island on the website: https://www.to-hawaii.com/{island}/beaches
 
-# List of islands To-Hawaii.com provides data on , 'kauai', 'big-island', 'lanai', 'molokai'
-islands = ['oahu', 'maui']
+    Parameters:
+    island (str): The name of the island to scrape beach data for. Should match the name used in the URL, e.g. 'big_island'
 
-for island in islands:
-    # Go to the island's beaches page
-    driver.get(f'https://www.to-hawaii.com/{island}/beaches')
-    
+    Returns:
+    list of dictionaries: A list of dictionaries, where each dictionary contains data for a single beach
+    """
+    # Open the website using a webdriver
+    driver.get(f"https://www.to-hawaii.com/{island}/beaches")
+
     # Wait for the page to load
     wait = WebDriverWait(driver, 7)
 
-    # Use the CSS selector to locate the links for each beach
-    beach_links = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".images_tabbox .images_tabbox_heading a[href]")))
-    
-    # Iterate through each beach link
-    for link in beach_links:
-        # Click on the link
-        link.click()
+    # Initialize a list to store scraped data
+    coastal_sites = []
 
-        # Wait for the beach page to load
-        wait.until(EC.presence_of_element_located((By.ID, "content")))
+    # Find the list of coastal sites
+    coastal_site_list = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#wrapper > div.midpanel > div > div.new-custom > div > div:nth-child(6) > div > div.images_tabbox_content > div > div > div.image_with_caption > a")))
 
-        # Extract the name of the beach
-        try:
-            name = driver.find_element_by_css_selector("h1.title span[itemprop='name']").text
-        except NoSuchElementException:
-            name = driver.find_element_by_css_selector("h2.small").text
-
-        # Extract the HTML of the description element
-        html_descriptions = driver.find_elements_by_css_selector("div.midpanel_row p")
-        description_text = ""
-
-        for html_description in html_descriptions:
-            # Use BeautifulSoup to parse the HTML and extract the text of the span
-            soup = BeautifulSoup(html_description.get_attribute('innerHTML'), 'html.parser')
-            description_text += soup.get_text()
-
-        # Click on the "Facilities" tab
-        driver.find_element_by_css_selector("#menu3 a").click()
-        # Wait for the facilities tab to load
-        wait.until(EC.presence_of_element_located((By.ID, "contenttab3")))
-        # Extract the text from the facilities list
-        facilities = driver.find_element_by_css_selector("#contenttab4 .mylist").text
-
-        # Click on the "Activities" tab
-        driver.find_element_by_css_selector("#menu4 a").click()
-        # Wait for the activities tab to load
-        wait.until(EC.presence_of_element_located((By.ID, "contenttab4")))
-        # Extract the text from the activities list
-        activities = driver.find_element_by_css_selector("#contenttab4 .mylist").text
-
-        # Append the information to the dataframe
-        df = df.append({'name': name, 'description': description_text, 'facilities': facilities, 'activities': activities}, ignore_index=True)
-
-        # Go back to the previous page
-        driver.back()
+    # Loop through each beach in the list
+    for i, coastal_site in enumerate(coastal_site_list):
+        # Click on the coastal site to navigate to its page
+        coastal_site.click()
         # Wait for the page to load
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".images_tabbox .images_tabbox_heading a[href]")))
-        beach_links = driver.find_elements_by_css_selector(".images_tabbox .images_tabbox_heading a[href]")
+        time.sleep(2)  
+        # Scrape the data for the current coastal site
+        try:
+            data = extract_coastal_site_data(driver, wait)
+            coastal_sites.append(data)
+        except (StaleElementReferenceException, NoSuchElementException) as e:
+            print(f"Error scraping data for beach {i + 1}: {e}")
+            continue    
+        # Navigate back to the list of beaches
+        driver.back()
 
-        
+    return coastal_sites
 
-# Description: Parking and/or access fees for residents and non-residents, mantas, dolphins, whales, turtles, seals, sand type
+def main():
+    islands = ["oahu", "maui", "kauai", "big_island", "lanai", "molokai"]
+    os.environ['PATH'] += r"C:/webdrivers"
+    driver = webdriver.Chrome()
+    wait = WebDriverWait(driver, 7)
 
-# Facilities: Lifeguard, paved parking, showers, restrooms
+    all_coastal_sites = []
+    
+    for island in islands:
+        coastal_sites = scrape_island_coastal_site(driver, wait, island)
+        all_coastal_sites.extend(coastal_sites)
 
-# Activities: Surfing, snorkeling
+    # Close the driver when finished
+    driver.quit()
 
-# driver.quit()
+    df = pd.DataFrame(all_coastal_sites)
+    df.to_csv('../../data/raw/to_hawaii_sties.csv', index = False, encoding = 'utf-8-sig')
+
+# Run the main function if the script is run as the main module
+if __name__ == "__main__":
+    main()

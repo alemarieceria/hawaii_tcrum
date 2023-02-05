@@ -86,12 +86,12 @@ def create_nearby_sites_dataframe(all_sites):
 # Function to save the dataframe to a csv file
 def save_nearby_sites_to_csv(df, file_path):
     # Write the dataframe to a csv file
-    df.to_csv(file_path, index=False, encoding='utf-8-sig')
+    df.to_csv(file_path, index = False, encoding = 'utf-8-sig')
 
 # Main function that performs data collection and export
 def main(api_key, islands, search_list):
     # Create a directory to store the raw data if it doesn't already exist
-    os.makedirs('../../data/raw', exist_ok=True)
+    os.makedirs('../../data/raw', exist_ok = True)
     # Initialize the Google Maps API client with the API key
     map_client = googlemaps.Client(api_key)
     # Collect data on nearby sites using the Google Maps API
