@@ -1,0 +1,5 @@
+raw_dataset_name,source_name,location,date_obtained,notes
+usgs_geographic_names_sites.csv,USGS,https://geoportal.hawaii.gov/datasets/HiStateGIS::gnis-geographic-names/explore?location=22.763610%2C-166.395400%2C5.87,2/4/2023,Government dataset used filter coastal sites
+places_api_nearby_search_sites.csv,Google Maps Places API - Nearby Search,https://developers.google.com/maps/documentation/places/web-service/search-nearby,2/4/2023,API used to request coastal sites
+to_hawaii_sties.csv,To-Hawaii,https://to-hawaii.com,2/4/2023,Web scraped data used to get coastal sties
+github_scraped_google_reviews.csv,Google Maps,https://github.com/gaspa93/googlemaps-scraper,2/4/2023,"Google Maps reviews scraper created by GitHub use, gaspa93, used to bypass reviews request limitation and to extract data physical characteristics, activities, amenities, marine mammal observations from text"
