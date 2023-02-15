@@ -44,17 +44,27 @@ library(tidyverse)
 # For visualizations
 library(rmarkdown)
 library(leaflet)
+library(sp)
 ```
 
 ## Data Sources
 
-1. Geographic Names Dataset
-    - The dataset comes from the Hawaii Statewide GIS Program website and can be downloaded [here](https://geoportal.hawaii.gov/datasets/HiStateGIS::gnis-geographic-names/about) 
-    - Metadata can be found [here](https://files.hawaii.gov/dbedt/op/gis/data/geonames.pdf)
+1. [Geographic Names Dataset](https://geoportal.hawaii.gov/datasets/HiStateGIS::gnis-geographic-names/about)
+    - This dataset will be used as an extensive list of coastal sites in Main Hawaiian Islands (MHI)
+      and will be filtered according to the following datasets which will tell us where people actually
+      recreate
 2. Webscraped data from [To-Hawaii.com](https://www.to-hawaii.com/maui/beaches/) blog
-    - See `code/data_collection_methods.Rmd` file for step-by-step process
+    - [About](https://www.to-hawaii.com/about-us.php) To-Hawaii.com
+      - TLDR:
+        - Created in 2006 by two residents to serve as an information portal for visitors and those interested in Hawaii
+        - Provides in-depth and unbiased information about the Hawaiian Islands and its culture, history, language, art, and challenges
+        - Covers all six MHI and offers detailed information on each island's unique experiences and attractions
+        - Mission is to provide the most comprehensive information about Hawaii available online
+    - This dataset will be used to gather information on: name of coastal sites, classification, sand composition and type, facilities, activities, marine mammal observation, and access/parking fees if available
+    - See `code/data_collection/webscrape_to_hawaii_sites.py` file for python script
 3. Google Maps Places API - [Nearby Search](https://developers.google.com/maps/documentation/places/web-service/search-nearby)
-    - See `code/data_collection_methods.Rmd` file for step-by-step process
+    - This dataset will be used to gather names of coastal sites based on total number of reviews (i.e., The more reviews, the more popular the site), classification, sand composition and type, facilities, activities, marine mammal observation, and access/parking fees if available
+    - See `code/data_collection/request_places_api_sites.py` file for python script
 
 ## Data tidying
 
@@ -63,15 +73,16 @@ library(leaflet)
 #### Define a function to perform selecting, renaming and filtering
 
 ```{r select_rename_filter() Function, message=FALSE, warning=FALSE}
-# 
 select_rename_filter <- function(data) {
   data %>%
-    select(feature_name, feature_class, county_name, map_name, X, Y) %>%
-    rename(lat = Y, lon = X, site_name = feature_name, 
-           class = feature_class, county = county_name) %>%
+    select(feature_name, feature_class, county_name, map_name, Y, X) %>%
+    rename(name = feature_name, 
+           classification = feature_class, 
+           county = county_name,
+           lat = Y, lon = X) %>%
     # Only keep beach parks
-    filter(class %in% c("Bay", "Beach", "Harbor") |
-           str_detect(site_name, regex("\\bbeach park\\b", ignore_case = TRUE)))
+    filter(classification %in% c("Bay", "Beach", "Harbor") |
+           str_detect(name, regex("\\bbeach park\\b", ignore_case = TRUE)))
 }
 
 # Validation
@@ -90,7 +101,7 @@ select_rename_filter <- function(data) {
 #### Read in dataset
 
 ```{r Geographic Names Raw Dataset, message=FALSE, warning=FALSE}
-geographic_names <- read.csv(here('data/raw/geographic_names_hi_gis.csv'))
+geographic_names <- read.csv(here('data/raw/usgs_geographic_names_sites.csv'))
 ```
 
 #### Create the following source objects
@@ -118,15 +129,15 @@ geographic_names_df <- geographic_names %>%
   # Add Kaulana Beach back in
   bind_rows(., kaulana_beach) %>% 
   # Remove sites not a part of the Main Hawaiian Islands (Adams Bay and West Cove)
-  filter(site_name != 'Adams Bay' & site_name != 'West Cove' & site_name != 'Shark Bay') %>%
+  filter(name != 'Adams Bay' & name != 'West Cove' & name != 'Shark Bay') %>%
   # Standardize site_name
-  mutate(site_name = stringi::stri_trans_general(site_name, "Latin-ASCII")) %>%
-  mutate(site_name = stringr::str_trim(site_name)) %>% 
+  mutate(name = stringi::stri_trans_general(name, "Latin-ASCII")) %>%
+  mutate(name = stringr::str_trim(name)) %>% 
   # Remove "'" and "(historical)"
-  mutate(site_name = stringr::str_remove(site_name, "'")) %>%
-  mutate(site_name = stringr::str_remove_all(site_name, "\\(.*\\)")) %>% 
+  mutate(name = stringr::str_remove(name, "'")) %>%
+  mutate(name = stringr::str_remove_all(name, "\\(.*\\)")) %>% 
   mutate_if(is.character, as.factor)
-  # mutate(site_name = stringi::stri_trans_tolower(site_name))
+  # mutate(site_name = stringi::stri_trans_tolower(name))
 ```
 
 #### Table
