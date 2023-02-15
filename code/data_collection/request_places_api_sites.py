@@ -1,4 +1,16 @@
-# Google Maps Places API - Nearby Search Documentation: https://developers.google.com/maps/documentation/places/web-service/search-nearby
+"""
+
+The script collects data on nearby coastal sites from the Google Maps API for various Hawaiian islands and saves it to a CSV file. It uses functions to convert miles to meters, extract location data from the API response, fetch places nearby a given location, collect nearby site data for all islands and create a Pandas dataframe from the collected data. The main function calls the other functions, and the script is run as a standalone script, with an API key, list of dictionaries representing Hawaiian islands, and a list of search terms.
+
+Google Maps Places API - Nearby Search Documentation: https://developers.google.com/maps/documentation/places/web-service/search-nearby
+
+Created on Sun Feb 5 12:30:00 2023
+
+Project: Expanding the Fezzi et al. Travel-Cost RUM to Hawaii
+Author: Alemarie Ceria
+Affiliation: Oleson Lab, Department of Natural Resources and Environmental Management, University of Hawaii at Manoa
+
+"""
 
 import os
 import googlemaps # module for accessing Google Maps API

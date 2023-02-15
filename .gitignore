@@ -38,9 +38,8 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# Old files
+# Files to ignore
 old_files/
-
-# Google Maps Places API key
 places_api_apikey.txt
+webdriver/
 
